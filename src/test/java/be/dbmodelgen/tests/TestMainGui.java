@@ -1,20 +1,18 @@
 package be.dbmodelgen.tests;
 
-import javax.swing.UIManager;
-
 import be.dbmodelgen.ui.MainGui;
 
 public class TestMainGui {
 
-	private static final String WINDOWS_LOOK = "com.sun.java.swing.plaf.windows.WindowsLookAndFeel";
+//	private static final String WINDOWS_LOOK = "com.sun.java.swing.plaf.windows.WindowsLookAndFeel";
 
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		try {
-			UIManager.setLookAndFeel(WINDOWS_LOOK);
-		} catch (Exception evt) {}
+//		try {
+//			UIManager.setLookAndFeel(WINDOWS_LOOK);
+//		} catch (Exception evt) {}
 
 
 		// TODO Auto-generated method stub
