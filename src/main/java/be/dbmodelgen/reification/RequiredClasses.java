@@ -12,6 +12,7 @@ import java.util.Set;
 import org.dynamicschema.annotation.Role;
 import org.dynamicschema.reification.Column;
 import org.dynamicschema.reification.ColumnModel;
+import org.dynamicschema.reification.ContextedTable;
 import org.dynamicschema.reification.DBTable;
 import org.dynamicschema.reification.Occurrence;
 import org.dynamicschema.reification.Relation;
@@ -41,6 +42,7 @@ public class RequiredClasses {
 		reqClasses.add(RelationCondition.class);
 		reqClasses.add(SqlCondition.class);
 		reqClasses.add(Role.class);
+		reqClasses.add(ContextedTable.class);
 		reqClasses.add(Occurrence.class);
 		reqClasses.add(Column.class);
 		reqClasses.add(ColumnConstraint.class);

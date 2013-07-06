@@ -6,7 +6,7 @@ import java.sql.DriverManager;
 import org.dynamicschema.reification.Schema;
 
 import be.dbmodelgen.database.RestaurantDAO;
-import be.dbmodelgen.tests.TestSchema;
+import be.dbmodelgen.tests.reification.TestSchema;
 
 public class TestSchemaGenerator {
 

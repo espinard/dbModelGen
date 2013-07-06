@@ -10,7 +10,7 @@ import javax.swing.JFrame;
 
 public class MainGui extends JFrame implements Runnable {
 	
-	private static final boolean IN_TEST = false;
+	private static final boolean IN_TEST = true;
 	
 	/**
 	 * 
@@ -77,7 +77,7 @@ public class MainGui extends JFrame implements Runnable {
 		
 		//TODO remove 
 		if(IN_TEST)
-			this.jpAppName.getTextField().setText("TestAppName");
+			this.jpAppName.getTextField().setText("Gourmet");
 	}
 
 

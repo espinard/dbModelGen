@@ -1,4 +1,4 @@
-package be.dbmodelgen.tests;
+package be.dbmodelgen.tests.reification;
 
 import java.util.ArrayList;
 import java.util.List;

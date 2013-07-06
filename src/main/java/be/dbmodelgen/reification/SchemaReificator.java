@@ -1,9 +1,13 @@
 package be.dbmodelgen.reification;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.dynamicschema.reification.Column;
 import org.dynamicschema.reification.ColumnModel;
@@ -39,8 +43,11 @@ import com.dbmain.jidbm.DBMSchema;
 
 public class SchemaReificator {
 
-	private static final String SCHEMA_TYPE_RELATIONAL= "RelationalRoles";
-	private static final String SCHEMA_TYPE_CONCEPTUAL= "ConceptualRoles";
+	
+	private final String PROP_FILE = "schema.properties";
+	
+	private static final String SCHEMA_TYPE_RELATIONAL= "relational";
+	private static final String SCHEMA_TYPE_CONCEPTUAL= "conceptual";
 	public static final String NO_ROLE = "NO_ROLE";
 	private final String FOREIGN_KEY_PREFIX = "FK";
 	private final String PRIMARY_KEY_PREFIX = "ID";
@@ -57,6 +64,7 @@ public class SchemaReificator {
 	
 	//Project related data
 	private DBMProject project;
+	private Properties propfile;
 	private DBMLibrary lib;
 	/**
 	 * @param path
@@ -67,6 +75,15 @@ public class SchemaReificator {
 		this.lTables = new ArrayList<DBTable>();
 		this.project = loadProject();
 		this.roleIdentifiers = new HashMap<String, Integer>();
+		this.propfile  = new Properties();
+		
+		try {
+			this.propfile.load(new FileInputStream(PROP_FILE));
+		} catch (FileNotFoundException e) {
+			System.out.println(PROP_FILE + "file not found. Using default values ");
+		} catch (IOException e) {	
+			System.out.println("Problem to read file: "+ PROP_FILE+ ". Using default values ");
+		}
 	}
 
 	/*
@@ -78,14 +95,18 @@ public class SchemaReificator {
 		Schema reified = null;
 
 		if (this.project != null) {
-			reified = reifySchema(getSChema(SCHEMA_TYPE_RELATIONAL));
+			String schemaTyp = propfile.getProperty(SCHEMA_TYPE_RELATIONAL);	
+			if(schemaTyp != null)
+				reified = reifySchema(getSChema(schemaTyp));
+			else
+				reified = reifySchema(getSChema(SCHEMA_TYPE_RELATIONAL));
+
 		}
 
 		try {
 			unloadProject();
 		} catch (MissingProjectException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException("Error getting Reified Schema: "+ e.getMessage());
 		}
 		return reified;
 	}
@@ -464,10 +485,11 @@ public class SchemaReificator {
 		 */
 		
 		for (int i = 0; i < rolesNamesList.size(); i++) {
-			if(rolesNamesList.get(i).equals(NO_ROLE)){
+			if(rolesNamesList.get(i).equals(NO_ROLE) || rolesNamesList.size() != 2){
 				String correspondingTableName = relTableNames.get(i);
 				if(appearsMoreThanOnceInRelation(correspondingTableName, relTableNames))
-					throw new MissingRoleException("Role Mandatory for table: "+ correspondingTableName + " because this table appears in more than once in relation");
+					throw new MissingRoleException("Role Mandatory for table: "+
+							correspondingTableName + " because this table appears in more than once in relation");
 			}
 		}
 		try {
@@ -488,11 +510,23 @@ public class SchemaReificator {
 		
 		DBMRole role  = relType.getFirstRole();
 		int idxFirst = -1; 
+		boolean recursive = isRecursiveRelation(relTableNames);
+	
 		//Parse all roles (2) and fetch their respective names
 		while (role != null){
+			boolean roleRecorded = false;
+			
 			for (int i = 0; i < relTableNames.size(); i++) {
+				String roleName = role.getName();
+				String roleEntityType = role.getFirstEntityType().getName();
+				
+				if(recursive && roleRecorded)//otherwise the role names table will be filled twice
+						continue;
+				
 				if(role.getFirstEntityType().getName().equals(relTableNames.get(i))){
 					rolesNamesList.add(i,buildUniqueRoleName(role.getName(), relTableNames));
+					roleRecorded = true;
+					
 					if(idxFirst == -1)
 						idxFirst = i; //keep the index of the first inserted element
 				}
@@ -509,6 +543,11 @@ public class SchemaReificator {
 
 		return rolesNamesList;
 	}
+	
+	private boolean isRecursiveRelation(List<String> tableNames){
+		return tableNames.get(0).equals(tableNames.get(1));
+	}
+	
 	
 	/*
 	 * Returns true when the given table name appears more than once in given relation 
@@ -533,14 +572,22 @@ public class SchemaReificator {
 	 */
 	private RoleMatching getMatchingRelationShipType(List<String> relTableNames){
 		//Get the conceptual
-		DBMSchema dbSch = getSChema(SCHEMA_TYPE_CONCEPTUAL);
+		String schemaType = this.propfile.getProperty(SCHEMA_TYPE_CONCEPTUAL);
+			
+		DBMSchema dbSch = null;
+		
+		if(schemaType != null)
+			dbSch = getSChema(schemaType);
+		else
+			dbSch = getSChema(SCHEMA_TYPE_CONCEPTUAL);
+		
 		DBMDataObject d = dbSch.getFirstDataObject();
 		int nbTables = relTableNames.size();
 
 		//First loop aims at finding whether there exists both tables names appear in the 
 		// conceptual schema as entities. 
 		//Otherwise there should be an entity whose name is the parameter list and the other name of the list correspond to a name of the relationship
-
+		boolean recursive = isRecursiveRelation(relTableNames);
 		boolean loopAgain = false; //Determines whether should loop again when first attempt to find matching didn't succeed.
 		 boolean incr = false ; 
 		int nbOcc = 0;
@@ -549,28 +596,37 @@ public class SchemaReificator {
 			if(d.getObjectType() == DBMGenericObject.REL_TYPE ){
 				DBMRelationshipType relType = (DBMRelationshipType) d;
 				DBMRole role = relType.getFirstRole();
-				 nbOcc= 0;
+				 nbOcc=0;
 				 
 				//Parse roles
 				while(role != null ){
 					String entityName = role.getFirstEntityType().getName();
-					for (int i = 0; i < nbTables; i++) {
-						if(entityName.equals(relTableNames.get(i)))
-							nbOcc++;	
+					
+					if(recursive){
+						if(entityName.equals(relTableNames.get(0)))
+								nbOcc++;
 						
-						if(loopAgain && !incr && relTableNames.get(i).equals(relType.getName())){
-							nbOcc++;
-							incr = true;
-						}	
+					}else{
+						for (int i = 0; i < nbTables; i++) {
+							if(entityName.equals(relTableNames.get(i))){
+								nbOcc++;
+							}
+							
+							if(loopAgain && !incr && relTableNames.get(i).equals(relType.getName())){
+								nbOcc++;
+								incr = true;
+							}	
+						}
 					}
-									
+						
+					role = relType.getNextRole(role);
+					
 					if(nbOcc == nbTables){
 						if(loopAgain)
 							return new RoleMatching(relType, RoleMatching.FOUND_ONE);
 						return new RoleMatching(relType, RoleMatching.FOUND_BOTH); 
 					}
 
-					role = relType.getNextRole(role);
 				}
 			}
 			d = dbSch.getNextDataObject(d);

@@ -11,6 +11,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.management.RuntimeErrorException;
+
 import org.dynamicschema.annotation.Role;
 import org.dynamicschema.reification.Occurrence;
 import org.dynamicschema.reification.Relation;
@@ -302,7 +304,7 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 		sbArgsRel.append(relDescrVar+ "," + NEW_LINE + getClassName(Arrays.class) + "." + METH_AS_LIST + "(" + sbArgsList.toString() + ")," + 
 				NEW_LINE + genRelationConditionCode(relation));			
 		//Add the whole thing
-		sb.append(PUBLIC + SPACE + getClassName(Relation.class) + SPACE + relVarName + SPACE + VAR_AFFECT + SPACE + NEW + SPACE + 
+		sb.append(PUBLIC + SPACE + STATIC + SPACE+  getClassName(Relation.class) + SPACE + relVarName + SPACE + VAR_AFFECT + SPACE + NEW + SPACE + 
 				getClassName(Relation.class) + "(" + sbArgsRel.toString() + ")" + END_STATEMENT_LINE);
 		return sb.toString();
 
@@ -332,7 +334,7 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 
 		//************************* !!!! *******************
 		//TODO TEMP. REMOVE WHEN PORTING IN ANDROID DEV
-		String tempAndroidVarDecl = STRING + SPACE + ANDROID_ID + SPACE + VAR_AFFECT + SPACE + NULL ; 
+		String tempAndroidVarDecl = STRING + SPACE + ANDROID_ID + SPACE + VAR_AFFECT + SPACE + "\"" + ANDROID_ID.toLowerCase() + "\"" ; 
 		//*************************
 
 		StringBuilder sb  = new StringBuilder(); 
@@ -352,11 +354,49 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 		try {
 			roles = this.reificator.getRoleNames(tableNames);
 		} catch (MissingRoleException e) {
-			// TODO Handle Exception 
-			e.printStackTrace();
+			throw new RuntimeException(e.getMessage());
 		}
-		String rolePrimary, roleSecond;
+		
+		String rolePrimary, roleSecond;	 
+		List<String> rolesForCode = buildRolesForCode(roles);
+		rolePrimary = rolesForCode.get(0);
+		roleSecond = rolesForCode.get(1);
+		
+		String primaryVarName, secondVarName;
+		
+		if(inRecursiveRelation(primaryTabName, secondaryTabName)){ //same tables => use roles to differentiate them
+			primaryVarName = primaryTabName.concat(roles.get(0)).toLowerCase();
+			secondVarName = secondaryTabName.concat(roles.get(1)).toLowerCase();
+		}else{
+			primaryVarName= primaryTabName.toLowerCase();
+			secondVarName = secondaryTabName.toLowerCase();
+		}
+			
+		String evalMethArgs =rolePrimary + SPACE +  getClassName(Table.class) + SPACE + primaryVarName;
+		evalMethArgs+="," + SPACE;
+		evalMethArgs+=roleSecond + SPACE + getClassName(Table.class) + SPACE + secondVarName;
 
+		sb.append("\t" + PUBLIC + SPACE + getClassName(SqlCondition.class) + SPACE + METH_EVAL +"(" + evalMethArgs + ")" + BRACKET_BEGIN + COMMENT_BEGIN + DEFAULT_COMMENT_ROLE + NEW_LINE);
+		String eqMethArgs = buildArgsOfSqlConditionEqMethod(relation, primaryTabName, secondaryTabName, roles);
+		//TODO TEMP. REMOVE WHEN PORTING IN ANDROID DEV
+		sb.append(COMMENT_BEGIN + "Temporary Decl. for make it compile. Remove when porting in android Dev" + NEW_LINE);
+		sb.append(COMMENT_BEGIN + "TODO FOR REMOVAL  SEE CODE GENERATOR" + NEW_LINE);
+		sb.append(tempAndroidVarDecl + END_STATEMENT_LINE);
+		//*************************
+		sb.append("\t\t" + RETURN + SPACE + NEW + SPACE + getClassName(SqlCondition.class) +"()" + "." + 	METH_EQ + "(" + eqMethArgs + ")" + END_STATEMENT_LINE);
+		sb.append("\t" + BRACKET_END);
+		sb.append(BRACKET_END);
+
+
+		return sb.toString();
+	}
+
+	private List<String> buildRolesForCode(List<String> roles){
+		
+		String rolePrimary = "";
+		String roleSecond ="";
+		
+		List<String> finalRoles = new ArrayList<String>(roles.size());
 		if(roles != null){
 			//Build the roles using the role class
 			String primRole = roles.get(0);
@@ -372,44 +412,27 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 			else
 				roleSecond ="";
 			
-		}else{
-			rolePrimary = "";
-			roleSecond = "";
 		}
-
-		String evalMethArgs =rolePrimary + SPACE +  getClassName(Table.class) + SPACE + primaryTabName;
-		evalMethArgs+="," + SPACE;
-		evalMethArgs+=roleSecond + SPACE + getClassName(Table.class) + SPACE + secondaryTabName;
-
-		sb.append("\t" + PUBLIC + SPACE + getClassName(SqlCondition.class) + SPACE + METH_EVAL +"(" + evalMethArgs + ")" + BRACKET_BEGIN + COMMENT_BEGIN + DEFAULT_COMMENT_ROLE + NEW_LINE);
-		String eqMethArgs = buildArgEqualMethod(relation, primaryTabName, secondaryTabName);
-		//TODO TEMP. REMOVE WHEN PORTING IN ANDROID DEV
-		sb.append(COMMENT_BEGIN + "Temporary Decl. for make it compile. Remove when porting in android Dev" + NEW_LINE);
-		sb.append(COMMENT_BEGIN + "TODO FOR REMOVAL  SEE CODE GENERATOR" + NEW_LINE);
-		sb.append(tempAndroidVarDecl + END_STATEMENT_LINE);
-		//*************************
-		sb.append("\t\t" + RETURN + SPACE + NEW + SPACE + getClassName(SqlCondition.class) +"()" + "." + 	METH_EQ + "(" + eqMethArgs + ")" + END_STATEMENT_LINE);
-		sb.append("\t" + BRACKET_END);
-		sb.append(BRACKET_END);
-
-
-		return sb.toString();
+		
+		finalRoles.add(0,rolePrimary);
+		finalRoles.add(1,roleSecond);
+		
+		return finalRoles;
 	}
-
 	
-	
+	private boolean inRecursiveRelation(String tab1Name, String tab2Name){
+		return tab1Name.equals(tab2Name);
+	}
 	
 	
 	/*
 	 * Building the set of arguments passed to "eval" method of the RelationCondition class 
-	 * Note: this 
+	 * 
 	 */
-	private String buildArgEqualMethod(Relation rel, String primaryTableName, String secTableName){
-
-
+	private String buildArgsOfSqlConditionEqMethod(Relation rel, String primaryTableName, String secTableName, List<String> roles){
+	
 		String args = "";
 		String fkColumn = getColumnForeignKeyInSecondaryTable(rel).toUpperCase();
-
 		
 		String tableName =  getTableName(rel, false);
 		String correspondingTableClassName = tableName + TABLE_NAME_SUFFIX;
@@ -420,11 +443,20 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 			buildLateImport(secTableColModelClassName, correspondingTableClassName);
 			this.importedColModelClasses.put(secTableColModelClassName, new Boolean(true));
 		}
+		String primaryVar, secondVar;
+		if(inRecursiveRelation(primaryTableName, secTableName)){
+			primaryVar = primaryTableName.concat(roles.get(0)).toLowerCase();
+			secondVar = secTableName.concat(roles.get(1)).toLowerCase();
+		}else{
+			primaryVar = primaryTableName.toLowerCase();
+			secondVar = secTableName.toLowerCase();
+		}
 		
-		args+=primaryTableName + "."+ METH_GET_COL + "(" + ANDROID_ID +")";
+		
+		args+=primaryVar + "."+ METH_GET_COL + "(" + ANDROID_ID +")";
 		args+=",";
-		args+=secTableName + "." + METH_GET_COL + "(" + secTableColModelClassName+ "." + fkColumn +")";
-
+		args+=secondVar + "." + METH_GET_COL + "(" + secTableColModelClassName+ "." + fkColumn +")";
+	
 		return args;
 	}
 

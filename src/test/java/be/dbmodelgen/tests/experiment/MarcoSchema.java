@@ -1,4 +1,4 @@
-package be.dbmodelgen.tests;
+package be.dbmodelgen.tests.experiment;
 
 
 import java.io.IOException;

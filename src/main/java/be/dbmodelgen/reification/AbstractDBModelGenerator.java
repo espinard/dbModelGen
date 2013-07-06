@@ -34,6 +34,8 @@ public abstract class AbstractDBModelGenerator implements IDBModelGenerator {
 	protected static final String NEW = "new";
 	protected static final String FINAL = "final";
 	protected static final String COMMENT_BEGIN = "//";
+	protected static final String CUSTOM_COMMENT_BEGIN = "/*";
+	protected static final String CUSTOM_COMMENT_END = "*/";
 	protected static final String NULL = "null";
 	protected static final String RETURN = "return";
 

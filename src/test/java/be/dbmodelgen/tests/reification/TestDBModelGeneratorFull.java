@@ -1,4 +1,4 @@
-package be.dbmodelgen.tests;
+package be.dbmodelgen.tests.reification;
 
 import org.dynamicschema.reification.Schema;
 

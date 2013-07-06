@@ -3,7 +3,6 @@ package be.dbmodelgen.reification;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import org.dynamicschema.reification.Column;
 import org.dynamicschema.reification.ColumnModel;
@@ -112,9 +111,9 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 	 */
 	private String genColumnsClassDeclaration(String tableName, ColumnModel model){
 
-		//TODO Temporary to make everything compiling. TO REMOVE When PORTING ON ANDROID DEVELOPMENT
-		String temp_commenting = COMMENT_BEGIN;
-		
+		//TODO  Temporary to make everything compiling. TO REMOVE When PORTING ON ANDROID DEVELOPMENT
+		String temp_commenting = "";
+		//TODO
 		
 		StringBuilder sb = new StringBuilder();
 		String newClassName = tableName + COLUMNCLASS_NAME_SUFFIX;		
@@ -128,15 +127,15 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 
 		//Fetch all the column names
 		List<Column> cols = model.getColumns();
-		String [] argArray = new String[cols.size()+ 1];
-		argArray[0] = ANDROID_ID;
-
+		String [] argArray = new String[cols.size()];
+	
+		
 		for (int i = 0; i < cols.size(); i++) {
 			String name = cols.get(i).getSimpleName();
 			String cstName =name.toUpperCase();
 			sb.append("\t\t" + PUBLIC + SPACE + STATIC + SPACE + STRING + SPACE + cstName + SPACE + 
 																		VAR_AFFECT + SPACE + "\"" + name + "\"" + END_STATEMENT_LINE);
-			argArray[i+1] = name.toUpperCase();
+			argArray[i] = name.toUpperCase();
 		}
 		sb.append(genLines(1));
 
@@ -145,6 +144,11 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 		//Defining the constructor of the ColumnModel inner class
 
 		sb.append("\t\t" +  PUBLIC + SPACE + newClassName +"()" + SPACE + BRACKET_BEGIN + NEW_LINE);
+		
+		//TODO REMOVE: should 
+		sb.append("\t\t" + COMMENT_BEGIN+  "Restore  import  " + SPACE + ANDROID_ID + SPACE + "when ready" + NEW_LINE);
+		//TODO =======
+		
 		sb.append("\t\t\t" + temp_commenting + METH_SETCOLUM_NAMES + "(" + getClassName(Arrays.class) + "." + METH_AS_LIST +"("  + argList + ")" + ")" + END_STATEMENT_LINE );
 
 		//Build constraint Code
