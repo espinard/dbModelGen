@@ -10,10 +10,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.management.RuntimeErrorException;
+import java.util.Set;
 
 import org.dynamicschema.annotation.Role;
+import org.dynamicschema.reification.DBTable;
 import org.dynamicschema.reification.Occurrence;
 import org.dynamicschema.reification.Relation;
 import org.dynamicschema.reification.RelationMember;
@@ -34,18 +34,35 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 
 	private static final String RELVAR_PREFIX = "rel_";
 	private static final String DEFAULT_COMMENT_ROLE = "Add annotation if needed";
+	private static final int cptRelDescr = 1;
+	private static final int cptRelVarName = 1;
+	private static final int cptRelVar = 1;
 
-	private SchemaReificator reificator;
+
+
+	private SchemaReifier reificator;
 	private StringBuilder headerLateImportBuilder;
 	private Map<String,Boolean> importedColModelClasses;
+	private List<String> relationNames;
+	
+	private Map<String, Integer> relationDescriptions; //ensures unicity of relations descriptions (names);
+	private Map<String, Integer> relationVarNames; //ensures unicity of relations variable names constant;
+	private Map<String, Integer> relationVar; //ensures unicity variables defining a relation.
+	private Map<String,String> allRelationVar ; //holds all relation variable names used for the same relation 
 	/**
 	 * @param sch
 	 */
-	public RelationModelGenerator(Schema sch, SchemaReificator reif, String appName, String packName, String genPath) {
+	public RelationModelGenerator(Schema sch, SchemaReifier reif, String appName, String packName, String genPath) {
 		super(sch, appName, packName, genPath);
 		this.reificator = reif;
 		this.headerLateImportBuilder = new StringBuilder();
 		this.importedColModelClasses = new HashMap<String, Boolean>();
+		this.relationNames = new ArrayList<String>();
+		this.relationDescriptions = new HashMap<String, Integer>();
+		this.relationVarNames = new HashMap<String, Integer>();
+		this.relationVar = new HashMap<String, Integer>();
+		
+		this.allRelationVar = new HashMap<String, String>();
 	}
 
 	/* (non-Javadoc)
@@ -67,8 +84,7 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 
 			mf.closeWriter();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException("Error in method \"generate\" "+ e.getMessage() );
 		}
 
 		System.out.println("Generation done : " + fName	);
@@ -94,28 +110,42 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 				//Ends declaration of previous class if exists
 				if(!precFocusTable.isEmpty())
 					innerClassDefBuilder.append(genEndClassDefinition(getFinalNameInnerClass(precFocusTable)));
+				
 				innerClassDefBuilder.append(genLines(3));
+				
 				innerClassDefBuilder.append(genRelations(relation, true, currFocusTable));
 			}else{ // continue code generation if already began
 
 				innerClassDefBuilder.append(genRelations(relation, false, currFocusTable));
 			}
 			precFocusTable = currFocusTable;
+			
+			//Save the name of the relation for further use in the constructor
+			this.relationNames.add(getMainClassName()+ "."+ getFinalNameInnerClass(currFocusTable)+ "."+ getNextRelationVarForConstructor(relation));
+			
 		}
 
 		//End declaration of last generated inner class
 		innerClassDefBuilder.append(genEndClassDefinition(getFinalNameInnerClass(precFocusTable)));
-	
-		
+
 		//Fill the StringBuilder with the final code
 		genSb.append(headerCode); 
 		//Builds the imports of the late generated classes 
 		genSb.append(this.headerLateImportBuilder.toString());
 		genSb.append(genLines(2));
 		genSb.append(mainClassDefCode);
-		genSb.append(innerClassDefBuilder.toString());
-		
 	
+		//Generate constructor here 
+		genSb.append(genConstructorCode());
+		genSb.append(genLines(2));
+		//Append additional methods here 
+		genSb.append(genUpdateTablesMethod());
+		//
+		genSb.append(genLines(2));
+		genSb.append(genUpdateAllRelationMembers());
+
+		genSb.append(innerClassDefBuilder.toString());
+
 		//Don't forget to close the main class too
 		genSb.append(genEndClassDefinition(getMainClassName()));
 
@@ -123,8 +153,7 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 		try {
 			mf.writeIntoFile(genSb.toString());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException("Error While Writing Relation model code in method \"genCodeOfRelations\" : "+ e.getMessage());
 		}
 
 	}
@@ -161,6 +190,97 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 		String newClassName = appName+getClassName(RelationModel.class);
 		return newClassName;
 	}
+
+
+	
+	
+
+	private String genConstructorCode(){
+		StringBuilder sb = new StringBuilder();
+		String relVar = "relations";
+		String relDecl =getClassName(List.class) + "<"+ getClassName(Relation.class)+ ">" + SPACE + relVar + SPACE + VAR_AFFECT + SPACE +  
+				getClassName(Arrays.class) +"." + METH_AS_LIST+ "(" + NEW_LINE;
+
+		String endDecl =")"+ END_STATEMENT_LINE;
+		sb.append(PUBLIC + SPACE + getMainClassName() + "()" + BRACKET_BEGIN + NEW_LINE);
+
+		sb.append(relDecl);
+
+		// Append all relations here
+		int nbRelations = this.relationNames.size();
+		for (int i = 0; i < nbRelations; i++) {
+			
+			if (i != (nbRelations - 1)){
+				 sb.append(this.relationNames.get(i) + "," + NEW_LINE);
+			}else{
+				sb.append(this.relationNames.get(i) + NEW_LINE);
+			}
+				
+		}
+
+		sb.append(endDecl);
+		sb.append(METH_SET_RELATIONS+ "("+ relVar +")" + END_STATEMENT_LINE);
+		sb.append(BRACKET_END);
+
+		return sb.toString();	
+	}
+
+
+	private String genUpdateTablesMethod(){
+
+		String paramName = "tables";
+		String tableParam = "dbTable";
+		StringBuilder sb = new StringBuilder();
+		String params = getClassName(List.class) + "<"+ getClassName(DBTable.class)+"> "+ paramName;
+		sb.append(PUBLIC + SPACE + VOID  + SPACE + METH_UPDATE_TABLES + "(" + params + ")" + BRACKET_BEGIN + NEW_LINE);
+		sb.append(genLines(2));
+		String forLoopParams = getClassName(DBTable.class) + SPACE + tableParam + " : " + paramName;
+
+		sb.append("\t" + FOR + SPACE +  "(" + forLoopParams + ")" + BRACKET_BEGIN + NEW_LINE);
+		sb.append("\t\t" + METH_UPDATE_ALL_MEMBERS + "(" + tableParam + ")" + END_STATEMENT_LINE);
+
+		sb.append("\t"+ BRACKET_END + NEW_LINE); // End loop 
+		sb.append(BRACKET_END + NEW_LINE); // End method
+
+
+		return sb.toString();
+
+	}
+
+	/*
+	 *  Needed method for updating tables instances of relationMembers
+	 *  
+	 */
+	private String genUpdateAllRelationMembers(){
+		StringBuilder sb = new StringBuilder();
+		String relParam = "relation";
+		String tableParam = "table";
+
+		String params= getClassName(DBTable.class) + " "+ tableParam;
+		sb.append(PRIVATE + SPACE + VOID  + SPACE + METH_UPDATE_ALL_MEMBERS + "(" + params + ")" + BRACKET_BEGIN + NEW_LINE );
+
+		String forParams = getClassName(Relation.class) + " " + relParam + " : "+ THIS + "." + METH_GET_RELATIONS +"()";
+		sb.append("\t" + FOR + "("+ forParams+")" + BRACKET_BEGIN + NEW_LINE);
+		String memberVar ="members";
+		String declaration =getClassName(List.class)+"<"+ getClassName(RelationMember.class)+">" +SPACE + memberVar + VAR_AFFECT + relParam+ "."+ 
+				METH_GET_MEMBERS + "()" + END_STATEMENT_LINE ;
+		sb.append("\t\t" + declaration + NEW_LINE);
+		String member ="member";
+		String innerParams= getClassName(RelationMember.class) + SPACE + member+ " : "+ memberVar; 
+		sb.append("\t\t" + FOR + "(" +innerParams+")" + BRACKET_BEGIN + NEW_LINE);
+
+		String paramEQ = tableParam+ "." + METH_GET_NAME+ "()";
+		String condition = member+ "." + METH_GET_TABLE+ "()"+"."+ METH_GET_NAME+"()"+ "."+ METH_EQUALS + "(" + paramEQ + ")";
+		sb.append("\t\t\t" + IF + "(" + condition + ")" + NEW_LINE);
+		sb.append("\t\t\t\t" + member + "." + METH_SET_TABLE + "(" + tableParam+ ")" + END_STATEMENT_LINE);
+
+		sb.append("\t\t" + BRACKET_END + NEW_LINE);
+		sb.append("\t" + BRACKET_END + NEW_LINE);
+		sb.append(BRACKET_END + NEW_LINE); //End method
+		return sb.toString();
+	}
+
+
 
 	/*
 	 * Generate piece of code for declaring relations objects which are encapsulated in a dedicated static class
@@ -248,11 +368,10 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 		String descr; 
 		descr = members.get(0).getTable().getName() + " has (or is in) a " + members.get(1).getTable().getName();
 
-
 		if(members.get(0).getOccurrence().equals(Occurrence.MANY)){ // Many member[0] - One member[1]
 			descr = members.get(1).getTable().getName() + " has (or is in) a" + members.get(0).getTable().getName();			
 		}
-
+		descr = buildUniqueDescription(descr);
 		//Variable declaring the relation description should be the relation put in uppercase (constant style)
 		sb.append(PUBLIC + SPACE + STATIC + SPACE + FINAL + SPACE + STRING + SPACE + varNameRelDescr + SPACE + 
 				VAR_AFFECT + SPACE +  "\"" + descr + "\"" + END_STATEMENT_LINE );
@@ -261,20 +380,90 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 
 	}
 
+	private String buildUniqueDescription(String relDescrip){
+		Integer flag = this.relationDescriptions.get(relDescrip);
+		String finalDescr;
+		if(flag == null){
+			flag = new Integer(cptRelDescr);
+			this.relationDescriptions.put(relDescrip, flag);
+			finalDescr = relDescrip;
+		}else{
+			int val = flag.intValue();
+			finalDescr = relDescrip+ "_" + (val+1);
+			flag = new Integer(val+1);
+		}
+		this.relationDescriptions.put(relDescrip, flag);
+
+		return finalDescr;
+	}
+	
+	
+	
+	
 
 	/*
 	 * Get the name of the variable that is going to be used to declare relation description ( as a JAVA static  constant) 
 	 */
 	private String getRelationDescriptionVarName(Relation rel){
-		return rel.getName().toUpperCase(); 
+		
+		String varNAme = rel.getName().toUpperCase();	
+	
+		Integer flag = this.relationVarNames.get(varNAme);
+		String finalVarName;
+		if(flag == null){
+			flag = new Integer(cptRelVarName);
+			this.relationVarNames.put(varNAme, flag);
+			finalVarName = varNAme;
+		}else{
+			int val = flag.intValue();
+			finalVarName = varNAme+ "_" + (val+1);
+			flag = new Integer(val+1);
+		}
+		this.relationVarNames.put(varNAme, flag);
+
+		return finalVarName;
 	}
 
 	/*
 	 * Get the name of the variable used to define the relation
+	 * Example: public Relation <var> = new Relation(...) 
+	 * Here we're trying to build <var> 
 	 */
 	private String getVarNameRelDefinition(Relation rel){
-		return  RELVAR_PREFIX + rel.getName();
+		String relName  =rel.getName();
+		
+		String relVar  =  RELVAR_PREFIX + relName;
+		
+		Integer flag = this.relationVar.get(relVar);
+		String finalRelVar;
+		if(flag == null){
+			flag = new Integer(cptRelVar);
+			this.relationVar.put(relVar, flag);
+			finalRelVar = relVar;
+		}else{
+			int val = flag.intValue();
+			finalRelVar = relVar+ "_" + (val+1);
+			flag = new Integer(val+1);
+		}
+		this.relationVar.put(relVar, flag);
+		this.allRelationVar.put(rel.getName(), finalRelVar);		
+		return finalRelVar;
 	}
+	
+	private String getNextRelationVarForConstructor(Relation relation){
+		
+		String relName = relation.getName();
+		Set<String> keys = this.allRelationVar.keySet();
+		List<String> listRelVar = new ArrayList<String>();
+		String finalRelVar; 
+		for (String relKey : keys) {
+			if(relName.equals(relKey))
+					listRelVar.add(allRelationVar.get(relKey)); 
+		}
+		finalRelVar = listRelVar.get(0);
+		return finalRelVar; 
+	}
+	
 
 	/*
 	 * 	Build the actual declaration of the relation
@@ -296,7 +485,7 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 		newMembName1 =  memb1.getTable().getName()+ TABLE_NAME_SUFFIX; 
 		newMembName2 =  memb2.getTable().getName() + TABLE_NAME_SUFFIX;
 
-		//Build arguments passed to method (asList) inside Relation constructor (Refer to example of generation in Sergio's code of DynamicSchema)
+		//Build arguments passed to method (asList) inside Relation constructor 
 		sbArgsList.append(NEW + SPACE + getClassName(RelationMember.class) + "(" + NEW+ SPACE + newMembName1+ "()"  + "," + card1 + ")" + "," + NEW_LINE);
 		sbArgsList.append(NEW + SPACE + getClassName(RelationMember.class) + "(" + NEW + SPACE +  newMembName2+ "()" + "," + card2 + ")");
 
@@ -332,11 +521,7 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 	 */
 	private String genRelationConditionCode(Relation relation){
 
-		//************************* !!!! *******************
-		//TODO TEMP. REMOVE WHEN PORTING IN ANDROID DEV
-		String tempAndroidVarDecl = STRING + SPACE + ANDROID_ID + SPACE + VAR_AFFECT + SPACE + "\"" + ANDROID_ID.toLowerCase() + "\"" ; 
-		//*************************
-
+	
 		StringBuilder sb  = new StringBuilder(); 
 
 		//build method call for setting relation condition on the relation
@@ -356,14 +541,14 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 		} catch (MissingRoleException e) {
 			throw new RuntimeException(e.getMessage());
 		}
-		
+
 		String rolePrimary, roleSecond;	 
 		List<String> rolesForCode = buildRolesForCode(roles);
 		rolePrimary = rolesForCode.get(0);
 		roleSecond = rolesForCode.get(1);
-		
+
 		String primaryVarName, secondVarName;
-		
+
 		if(inRecursiveRelation(primaryTabName, secondaryTabName)){ //same tables => use roles to differentiate them
 			primaryVarName = primaryTabName.concat(roles.get(0)).toLowerCase();
 			secondVarName = secondaryTabName.concat(roles.get(1)).toLowerCase();
@@ -371,18 +556,14 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 			primaryVarName= primaryTabName.toLowerCase();
 			secondVarName = secondaryTabName.toLowerCase();
 		}
-			
+
 		String evalMethArgs =rolePrimary + SPACE +  getClassName(Table.class) + SPACE + primaryVarName;
 		evalMethArgs+="," + SPACE;
 		evalMethArgs+=roleSecond + SPACE + getClassName(Table.class) + SPACE + secondVarName;
 
 		sb.append("\t" + PUBLIC + SPACE + getClassName(SqlCondition.class) + SPACE + METH_EVAL +"(" + evalMethArgs + ")" + BRACKET_BEGIN + COMMENT_BEGIN + DEFAULT_COMMENT_ROLE + NEW_LINE);
 		String eqMethArgs = buildArgsOfSqlConditionEqMethod(relation, primaryTabName, secondaryTabName, roles);
-		//TODO TEMP. REMOVE WHEN PORTING IN ANDROID DEV
-		sb.append(COMMENT_BEGIN + "Temporary Decl. for make it compile. Remove when porting in android Dev" + NEW_LINE);
-		sb.append(COMMENT_BEGIN + "TODO FOR REMOVAL  SEE CODE GENERATOR" + NEW_LINE);
-		sb.append(tempAndroidVarDecl + END_STATEMENT_LINE);
-		//*************************
+		
 		sb.append("\t\t" + RETURN + SPACE + NEW + SPACE + getClassName(SqlCondition.class) +"()" + "." + 	METH_EQ + "(" + eqMethArgs + ")" + END_STATEMENT_LINE);
 		sb.append("\t" + BRACKET_END);
 		sb.append(BRACKET_END);
@@ -392,57 +573,72 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 	}
 
 	private List<String> buildRolesForCode(List<String> roles){
-		
+
 		String rolePrimary = "";
 		String roleSecond ="";
-		
+
 		List<String> finalRoles = new ArrayList<String>(roles.size());
 		if(roles != null){
 			//Build the roles using the role class
 			String primRole = roles.get(0);
 			String secRole = roles.get(1);
-			
-			if(!primRole.equals(SchemaReificator.NO_ROLE))
+
+			if(!primRole.equals(SchemaReifier.NO_ROLE))
 				rolePrimary = "@" + getClassName(Role.class) + "(\"" + primRole.toLowerCase() + "\")";
 			else
 				rolePrimary ="";
-			
-			if(!secRole.equals(SchemaReificator.NO_ROLE))
+
+			if(!secRole.equals(SchemaReifier.NO_ROLE))
 				roleSecond ="@" + getClassName(Role.class) + "(\"" + secRole.toLowerCase() + "\")" ;
 			else
 				roleSecond ="";
-			
+
 		}
-		
+
 		finalRoles.add(0,rolePrimary);
 		finalRoles.add(1,roleSecond);
-		
+
 		return finalRoles;
 	}
-	
+
 	private boolean inRecursiveRelation(String tab1Name, String tab2Name){
 		return tab1Name.equals(tab2Name);
 	}
-	
-	
+
+
 	/*
 	 * Building the set of arguments passed to "eval" method of the RelationCondition class 
 	 * 
 	 */
 	private String buildArgsOfSqlConditionEqMethod(Relation rel, String primaryTableName, String secTableName, List<String> roles){
-	
+
+		
 		String args = "";
-		String fkColumn = getColumnForeignKeyInSecondaryTable(rel).toUpperCase();
+		String fkColumnName = getColumnForeignKeyInSecondaryTable(rel).toUpperCase();
+		String pkColumnName = getPrimaryColumnInPrimaryTable(rel).toUpperCase();
+
 		
 		String tableName =  getTableName(rel, false);
-		String correspondingTableClassName = tableName + TABLE_NAME_SUFFIX;
+		String correspondingSecTableClassName = tableName + TABLE_NAME_SUFFIX;
+		String primTabName = getTableName(rel, true);
+		String correspondingPrimTableClassName = primTabName + TABLE_NAME_SUFFIX;
+		
 		//Example of class to import: PoiDescriptionColumns
 		String secTableColModelClassName = tableName+ COLUMNCLASS_NAME_SUFFIX;
+		String primaryTableColModelClassName = getTableName(rel, true) + COLUMNCLASS_NAME_SUFFIX;
+		
 		if(!this.importedColModelClasses.containsKey(secTableColModelClassName)){
 			//Register class for import
-			buildLateImport(secTableColModelClassName, correspondingTableClassName);
+			buildLateImport(secTableColModelClassName, correspondingSecTableClassName);
 			this.importedColModelClasses.put(secTableColModelClassName, new Boolean(true));
 		}
+		//Same here
+		if(!this.importedColModelClasses.containsKey(primaryTableColModelClassName)){
+			
+			buildLateImport(primaryTableColModelClassName, correspondingPrimTableClassName);
+			this.importedColModelClasses.put(primaryTableColModelClassName, new Boolean(true))	;
+		}
+		
 		String primaryVar, secondVar;
 		if(inRecursiveRelation(primaryTableName, secTableName)){
 			primaryVar = primaryTableName.concat(roles.get(0)).toLowerCase();
@@ -452,14 +648,23 @@ public class RelationModelGenerator extends AbstractDBModelGenerator {
 			secondVar = secTableName.toLowerCase();
 		}
 		
-		
-		args+=primaryVar + "."+ METH_GET_COL + "(" + ANDROID_ID +")";
+		args+=primaryVar + "."+ METH_GET_COL + "(" + primaryTableColModelClassName+ "."+ pkColumnName +")";
 		args+=",";
-		args+=secondVar + "." + METH_GET_COL + "(" + secTableColModelClassName+ "." + fkColumn +")";
-	
+		args+=secondVar + "." + METH_GET_COL + "(" + secTableColModelClassName+ "." + fkColumnName +")";
+
 		return args;
 	}
 
+	
+	/*
+	 * 
+	 * In the table where the foreign key of the relation is located, retrieves the column name
+	 */
+	private String getPrimaryColumnInPrimaryTable(Relation rel){
+
+		DefaultRelationCondition cond = (DefaultRelationCondition) rel.getCondition();
+		return cond.getColParent();
+	}
 	/*
 	 * 
 	 * In the table where the foreign key of the relation is located, retrieves the column name

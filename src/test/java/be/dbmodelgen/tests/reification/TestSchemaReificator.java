@@ -5,7 +5,7 @@ package be.dbmodelgen.tests.reification;
 
 import org.dynamicschema.reification.Schema;
 
-import be.dbmodelgen.reification.SchemaReificator;
+import be.dbmodelgen.reification.SchemaReifier;
 
 /**
  * @author esp
@@ -19,7 +19,7 @@ public class TestSchemaReificator {
 	public static void main(String[] args) {
 	
 		String path = "D:\\Documents\\Dropbox\\UCL\\Master22\\Thesis\\DBMain\\projects\\Gourmet.lun";
-		SchemaReificator schR = new SchemaReificator(path);
+		SchemaReifier schR = new SchemaReifier(path);
 		Schema sch = schR.getSchema();
 		TestSchema.printSchema(sch);
 	}

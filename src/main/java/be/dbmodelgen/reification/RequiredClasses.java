@@ -4,6 +4,7 @@
 
 package be.dbmodelgen.reification;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -18,12 +19,15 @@ import org.dynamicschema.reification.Occurrence;
 import org.dynamicschema.reification.Relation;
 import org.dynamicschema.reification.RelationMember;
 import org.dynamicschema.reification.RelationModel;
+import org.dynamicschema.reification.Schema;
 import org.dynamicschema.reification.Table;
 import org.dynamicschema.reification.columnconstraint.ColumnConstraint;
 import org.dynamicschema.reification.columnconstraint.ForeignKey;
 import org.dynamicschema.reification.columnconstraint.PrimaryKey;
 import org.dynamicschema.sql.RelationCondition;
 import org.dynamicschema.sql.SqlCondition;
+
+import be.dbmodelgen.sql.EmptyFilteringCondition;
 
 public class RequiredClasses {
 
@@ -53,6 +57,9 @@ public class RequiredClasses {
 		reqClasses.add(List.class);
 		reqClasses.add(Arrays.class);
 		reqClasses.add(Table.class);
+		reqClasses.add(EmptyFilteringCondition.class);
+		reqClasses.add(ArrayList.class);
+		reqClasses.add(Schema.class);
 		return reqClasses;
 	}
 	

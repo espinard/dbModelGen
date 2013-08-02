@@ -41,7 +41,7 @@ import com.dbmain.jidbm.DBMRole;
 import com.dbmain.jidbm.DBMSchema;
 
 
-public class SchemaReificator {
+public class SchemaReifier {
 
 	
 	private final String PROP_FILE = "schema.properties";
@@ -59,8 +59,8 @@ public class SchemaReificator {
 	private String path;  // path of the .lun file containing schema info
 	private List<DBTable> lTables;
 
-	
-	private Map<String,Integer> roleIdentifiers;
+	private Map<String,Integer> relationNamesIdentifier; //used to make sure we won't have duplicate relation names
+	private List<String> relTypesNames;  //During role names fetching, make sure we don't consider the same DBMaina relType twice
 	
 	//Project related data
 	private DBMProject project;
@@ -69,13 +69,14 @@ public class SchemaReificator {
 	/**
 	 * @param path
 	 */
-	public SchemaReificator(String path) { 
+	public SchemaReifier(String path) { 
 
 		this.path = path;
 		this.lTables = new ArrayList<DBTable>();
 		this.project = loadProject();
-		this.roleIdentifiers = new HashMap<String, Integer>();
+		this.relationNamesIdentifier = new HashMap<String, Integer>();
 		this.propfile  = new Properties();
+		this.relTypesNames = new ArrayList<String>();
 		
 		try {
 			this.propfile.load(new FileInputStream(PROP_FILE));
@@ -358,6 +359,7 @@ public class SchemaReificator {
 
 	/*
 	 * Get all relations of the corresponding tables 
+	 * Relations of a table are detected by checking whether the table has a foreign key referencing another table
 	 * 
 	 */
 	private List<Relation> getRelationsOfTable(DBMEntityRelationshipType eType){
@@ -428,9 +430,9 @@ public class SchemaReificator {
 					// Get info about Roles
 
 					RelationCondition cond = new DefaultRelationCondition(getDBTable(targTableName), getDBTable(origTabName),targAttr, origAttr);
-
+					String relationName = buildUniqueRelationName(targTableName, origTabName);			
 					//Finally build the relation
-					relation = new Relation(targTableName+"_"+origTabName+"_"+(cpt_Rel_Name++), relMembers, cond);
+					relation = new Relation(relationName, relMembers, cond);
 				}
 			}
 			cstr =  gr.getNextConstraint(cstr);
@@ -485,7 +487,8 @@ public class SchemaReificator {
 		 */
 		
 		for (int i = 0; i < rolesNamesList.size(); i++) {
-			if(rolesNamesList.get(i).equals(NO_ROLE) || rolesNamesList.size() != 2){
+			String currRoleName = rolesNamesList.get(i);
+			if(currRoleName.equals(NO_ROLE) || rolesNamesList.size() != 2){
 				String correspondingTableName = relTableNames.get(i);
 				if(appearsMoreThanOnceInRelation(correspondingTableName, relTableNames))
 					throw new MissingRoleException("Role Mandatory for table: "+
@@ -495,8 +498,7 @@ public class SchemaReificator {
 		try {
 			unloadProject();
 		} catch (MissingProjectException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException("Error while trying to get roles: " + e.getMessage() );	
 		}
 		
 		return rolesNamesList;
@@ -506,8 +508,8 @@ public class SchemaReificator {
 	
 	private List<String> getRoles(RoleMatching matching,DBMRelationshipType relType, List<String> relTableNames){
 		
-		List<String> rolesNamesList = new ArrayList<String>(relTableNames.size());
-		
+		String [] rolesNamesArr = new String [relTableNames.size()];
+	
 		DBMRole role  = relType.getFirstRole();
 		int idxFirst = -1; 
 		boolean recursive = isRecursiveRelation(relTableNames);
@@ -520,12 +522,16 @@ public class SchemaReificator {
 				String roleName = role.getName();
 				String roleEntityType = role.getFirstEntityType().getName();
 				
-				if(recursive && roleRecorded)//otherwise the role names table will be filled twice
-						continue;
+				if(recursive && roleRecorded){//otherwise the role names table will be filled twice
+					continue;
+				
+				}
 				
 				if(role.getFirstEntityType().getName().equals(relTableNames.get(i))){
-					rolesNamesList.add(i,buildUniqueRoleName(role.getName(), relTableNames));
-					roleRecorded = true;
+					if(i != idxFirst){
+						rolesNamesArr[i] = buildUniqueRoleName(role.getName(), relTableNames);
+						roleRecorded = true;
+					}
 					
 					if(idxFirst == -1)
 						idxFirst = i; //keep the index of the first inserted element
@@ -537,11 +543,17 @@ public class SchemaReificator {
 		if(matching.getMatching() == RoleMatching.FOUND_ONE){
 			for (int i = 0; i < relTableNames.size(); i++) {
 				if(i != idxFirst)
-					rolesNamesList.add(i,buildUniqueRoleName(relType.getName(), relTableNames));
+					rolesNamesArr [i] = buildUniqueRoleName(relType.getName(), relTableNames);
 			}
 		}
 
-		return rolesNamesList;
+		List<String> listRoles = new ArrayList<String>(rolesNamesArr.length);
+		for (int i = 0; i < rolesNamesArr.length; i++) {
+			
+				listRoles.add(i, rolesNamesArr[i]);
+			
+		}
+		 return listRoles;
 	}
 	
 	private boolean isRecursiveRelation(List<String> tableNames){
@@ -588,8 +600,12 @@ public class SchemaReificator {
 		// conceptual schema as entities. 
 		//Otherwise there should be an entity whose name is the parameter list and the other name of the list correspond to a name of the relationship
 		boolean recursive = isRecursiveRelation(relTableNames);
-		boolean loopAgain = false; //Determines whether should loop again when first attempt to find matching didn't succeed.
-		 boolean incr = false ; 
+		 //Determines whether should loop again because both tables do not appear in conceptual schema
+		boolean loopAgain = false;
+		boolean incr = false ; 
+		//if multiple relationships exit between same tables => prevent from stopping at relationship already found 
+		//Serves at keep searching in the conceptual schema
+		boolean keepGoing = false; 
 		int nbOcc = 0;
 		while (d != null) {	
 
@@ -597,7 +613,7 @@ public class SchemaReificator {
 				DBMRelationshipType relType = (DBMRelationshipType) d;
 				DBMRole role = relType.getFirstRole();
 				 nbOcc=0;
-				 
+				 String prevEntityNameForRole =""; 
 				//Parse roles
 				while(role != null ){
 					String entityName = role.getFirstEntityType().getName();
@@ -608,7 +624,9 @@ public class SchemaReificator {
 						
 					}else{
 						for (int i = 0; i < nbTables; i++) {
-							if(entityName.equals(relTableNames.get(i))){
+							//When having couple of tables where one of them participates in another relation which is recursive 
+							//the first condition need to prevent from counting the other recursive relation as the matched one
+							if(!prevEntityNameForRole.equals(entityName) && (entityName.equals(relTableNames.get(i)))){
 								nbOcc++;
 							}
 							
@@ -622,10 +640,18 @@ public class SchemaReificator {
 					role = relType.getNextRole(role);
 					
 					if(nbOcc == nbTables){
+//						String chosenRoleName = relType.getName();
 						if(loopAgain)
 							return new RoleMatching(relType, RoleMatching.FOUND_ONE);
-						return new RoleMatching(relType, RoleMatching.FOUND_BOTH); 
+						else {
+							
+							if(!relTypeAlreadyFound(relType)){
+								registerFoundRelTypeName(relType);
+								return new RoleMatching(relType, RoleMatching.FOUND_BOTH); 
+							}
+						}
 					}
+					prevEntityNameForRole = entityName;
 
 				}
 			}
@@ -634,12 +660,24 @@ public class SchemaReificator {
 			if(d == null && !loopAgain && nbOcc != nbTables ){ // All relationships have been parsed at the first loop without any result
 				d = dbSch.getFirstDataObject();
 				loopAgain = true;
+			}else if(!keepGoing) {
+				keepGoing = true; 
+				d = dbSch.getFirstDataObject(); 
 			}
 		}
 
 		return null;
 	}
 
+	
+	private void registerFoundRelTypeName(DBMRelationshipType relType){
+		this.relTypesNames.add(relType.getName());
+	}
+	
+	private boolean relTypeAlreadyFound(DBMRelationshipType relType){
+		return this.relTypesNames.contains(relType.getName());
+	}
+	
 	
 	/*
 	 * Constructs a unique role name because duplicate role names are not allowed
@@ -654,6 +692,23 @@ public class SchemaReificator {
 		}
 			
 		return finalRoleName;
+	}
+	
+	
+	
+	private String buildUniqueRelationName(String targTabName, String origTabName){
+	
+		String name = targTabName+ "_" +  origTabName;
+		String finalName = name;
+		Integer val = this.relationNamesIdentifier.get(name);
+		if(val != null) { //relation Name already exists
+			int newVal = cpt_Rel_Name++;
+			finalName+="_"+ newVal++;
+			val = Integer.valueOf(newVal);
+			this.relationNamesIdentifier.put(name, val);
+		}
+		return finalName;
+		
 	}
 
 

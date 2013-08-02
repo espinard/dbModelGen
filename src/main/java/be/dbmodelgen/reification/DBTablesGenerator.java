@@ -47,9 +47,8 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException("Error in method \"generate\" of tables "+ e.getMessage() );
 		}
-
 
 
 		System.out.println("Number of Generated Classes: "+ tables.size());
@@ -71,13 +70,15 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 		try {
 			mf.writeIntoFile(sb.toString());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException("Error in table generation method genDBModelClassOfTable: "+ e.getMessage());
 		}
 
 
 	}
 
+	/*
+	 * Generate the table class definition for a given reified table
+	 */
 	private String getClassDefinition(DBTable table){
 
 		StringBuilder sb = new StringBuilder();
@@ -92,14 +93,13 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 		String colClassDef = genColumnsClassDeclaration(table.getName(),table.getColumnModel());
 		sb.append(colClassDef);
 		sb.append(genLines(2));
-		cstrArgs[0] = "NAME";
+		cstrArgs[0] = TABLE_NAME_FIELD;
 		cstrArgs[1] = NEW + SPACE  + table.getName()+ COLUMNCLASS_NAME_SUFFIX + "()";
 		String constructor = genConstructor(newClassName, cstrArgs);
 		sb.append("\t" + constructor);
 		sb.append(genLines(2));
 		sb.append(BRACKET_END);
 		return sb.toString();
-
 	}
 
 
@@ -111,9 +111,7 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 	 */
 	private String genColumnsClassDeclaration(String tableName, ColumnModel model){
 
-		//TODO  Temporary to make everything compiling. TO REMOVE When PORTING ON ANDROID DEVELOPMENT
-		String temp_commenting = "";
-		//TODO
+
 		
 		StringBuilder sb = new StringBuilder();
 		String newClassName = tableName + COLUMNCLASS_NAME_SUFFIX;		
@@ -145,11 +143,7 @@ public class DBTablesGenerator  extends AbstractDBModelGenerator {
 
 		sb.append("\t\t" +  PUBLIC + SPACE + newClassName +"()" + SPACE + BRACKET_BEGIN + NEW_LINE);
 		
-		//TODO REMOVE: should 
-		sb.append("\t\t" + COMMENT_BEGIN+  "Restore  import  " + SPACE + ANDROID_ID + SPACE + "when ready" + NEW_LINE);
-		//TODO =======
-		
-		sb.append("\t\t\t" + temp_commenting + METH_SETCOLUM_NAMES + "(" + getClassName(Arrays.class) + "." + METH_AS_LIST +"("  + argList + ")" + ")" + END_STATEMENT_LINE );
+		sb.append("\t\t\t" + METH_SETCOLUM_NAMES + "(" + getClassName(Arrays.class) + "." + METH_AS_LIST +"("  + argList + ")" + ")" + END_STATEMENT_LINE );
 
 		//Build constraint Code
 		sb.append("\t\t\t" + buildConstraintsSettingCode(model));

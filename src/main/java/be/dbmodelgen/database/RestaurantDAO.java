@@ -60,7 +60,7 @@ public interface RestaurantDAO {
 	 * 	  
 	 */ 
 	
-	List<Restaurant> getRestaurantOfGivenType(Map<String, Object> contextData);
+	List<RestaurantDeprecated> getRestaurantOfGivenType(Map<String, Object> contextData);
 
 	
 	
@@ -76,7 +76,7 @@ public interface RestaurantDAO {
 	 * 	  
 	 */ 
 	
-	List<Restaurant> getRestaurantsWithOnlyPreferredMeals(Map<String, Object> contextData);
+	List<RestaurantDeprecated> getRestaurantsWithOnlyPreferredMeals(Map<String, Object> contextData);
 	
 	
 	

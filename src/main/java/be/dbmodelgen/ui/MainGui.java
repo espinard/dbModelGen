@@ -1,5 +1,6 @@
 package be.dbmodelgen.ui;
 
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.HeadlessException;
 import java.awt.event.ActionEvent;
@@ -51,7 +52,8 @@ public class MainGui extends JFrame implements Runnable {
 		this.setLayout(new GridLayout(5, 1));
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		this.setLocationRelativeTo(null);
-		this.setSize(1200, 800);
+//		this.setPreferredSize(new Dimension(500, 300));
+		this.setSize(500, 300);
 		this.pack();
 	}
 

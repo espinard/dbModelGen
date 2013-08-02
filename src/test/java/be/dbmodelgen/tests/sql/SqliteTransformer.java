@@ -1,4 +1,4 @@
-package be.dbmodelgen.tests.experiment;
+package be.dbmodelgen.tests.sql;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -17,14 +17,14 @@ public class SqliteTransformer {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		
-		String fileIn= "D:\\Documents\\Dropbox\\UCL\\Master22\\Thesis\\GourmetTestFiles\\gourmetBigRecursiveDataTRANSFORM.sql";
+		String fileIn= "D:\\Documents\\Dropbox\\UCL\\Master22\\Thesis\\GourmetTestFiles\\gourmetBigRecursiveDataPARSABLE_SQLITE_TRANSFORMER.sql";
 		BufferedReader reader = null;
 		MyFileWriter writer = null;
 		try {
 		
 			reader = new BufferedReader(new FileReader(fileIn));
 			String line = null;
-			writer  = new MyFileWriter("D:\\Documents\\Dropbox\\UCL\\Master22\\Thesis\\GourmetTestFiles\\insertion.sql");
+			writer  = new MyFileWriter("D:\\Documents\\Dropbox\\UCL\\Master22\\Thesis\\GourmetTestFiles\\SQLITE_Manager_insertion.sql");
 			String precTabName = null;
 			String tabName = null;
 			int cptID = -1;
@@ -59,6 +59,8 @@ public class SqliteTransformer {
 						if(precTabName != null){
 							writer.writeIntoFile(" ; " + "\n");
 						}
+						
+						str2w+= "DELETE FROM "+ tabName + " ; \n ";
 						
 						cptID = 1;
 						str2w += "INSERT INTO " + tabName + "\n" + "\t\t";

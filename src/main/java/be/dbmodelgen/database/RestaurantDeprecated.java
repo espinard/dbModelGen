@@ -1,6 +1,6 @@
 package be.dbmodelgen.database;
 
-public interface Restaurant {
+public interface RestaurantDeprecated {
 
 		int getID();
 		String getName();

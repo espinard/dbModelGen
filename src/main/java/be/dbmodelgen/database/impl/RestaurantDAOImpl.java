@@ -15,7 +15,7 @@ import org.dynamicschema.reification.Column;
 import be.dbmodelgen.database.Customer;
 import be.dbmodelgen.database.Location;
 import be.dbmodelgen.database.Meal;
-import be.dbmodelgen.database.Restaurant;
+import be.dbmodelgen.database.RestaurantDeprecated;
 import be.dbmodelgen.database.RestaurantDAO;
 
 public class RestaurantDAOImpl implements RestaurantDAO {
@@ -45,7 +45,7 @@ public class RestaurantDAOImpl implements RestaurantDAO {
 
 
 		resList = new ArrayList<Customer>();
-		Restaurant  rest = (Restaurant) contextData.get("restaurant");
+		RestaurantDeprecated  rest = (RestaurantDeprecated) contextData.get("restaurant");
 
 
 		try {
@@ -163,7 +163,7 @@ public class RestaurantDAOImpl implements RestaurantDAO {
 		Statement statement = null;
 
 		Date date = (Date)contextData.get("date");
-		Restaurant rest = (Restaurant)contextData.get("restaurant");
+		RestaurantDeprecated rest = (RestaurantDeprecated)contextData.get("restaurant");
 		String query = buildQuery_3(date, rest.getID());
 
 		resList = new ArrayList<Meal>();
@@ -210,17 +210,17 @@ public class RestaurantDAOImpl implements RestaurantDAO {
 	}
 
 	
-	public List<Restaurant> getRestaurantOfGivenType(Map<String, Object> contextData) {
+	public List<RestaurantDeprecated> getRestaurantOfGivenType(Map<String, Object> contextData) {
 
 
-		List<Restaurant> resList = null;
+		List<RestaurantDeprecated> resList = null;
 		ResultSet resultSet = null;
 		Statement statement = null;
 
 		Customer cust= (Customer)contextData.get("customer");
 		String query = buildQuery_4(cust.getID());
 
-		resList = new ArrayList<Restaurant>();
+		resList = new ArrayList<RestaurantDeprecated>();
 
 		try {
 			statement = this.connection.createStatement();
@@ -230,7 +230,7 @@ public class RestaurantDAOImpl implements RestaurantDAO {
 
 				int rest_id=resultSet.getInt("restaurant_id");
 
-				Restaurant res =  new Mock_Restaurant(rest_id);
+				RestaurantDeprecated res =  new Mock_Restaurant(rest_id);
 				resList.add(res);
 
 			}
@@ -265,9 +265,9 @@ public class RestaurantDAOImpl implements RestaurantDAO {
 
 
 	
-	public List<Restaurant> getRestaurantsWithOnlyPreferredMeals(Map<String, Object> contextData) {
+	public List<RestaurantDeprecated> getRestaurantsWithOnlyPreferredMeals(Map<String, Object> contextData) {
 
-		List<Restaurant> resList = null;
+		List<RestaurantDeprecated> resList = null;
 		ResultSet resultSet = null;
 		Statement statement = null;
 
@@ -276,7 +276,7 @@ public class RestaurantDAOImpl implements RestaurantDAO {
 
 		String query = buildQuery_5(loc,cust.getID());
 
-		resList = new ArrayList<Restaurant>();
+		resList = new ArrayList<RestaurantDeprecated>();
 
 		try {
 			statement = this.connection.createStatement();
@@ -285,7 +285,7 @@ public class RestaurantDAOImpl implements RestaurantDAO {
 			while (resultSet.next()) {
 
 				int rest_id=resultSet.getInt("restaurant_id");
-				Restaurant res =  new Mock_Restaurant(rest_id);
+				RestaurantDeprecated res =  new Mock_Restaurant(rest_id);
 				resList.add(res);
 
 			}

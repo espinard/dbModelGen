@@ -20,11 +20,14 @@ public abstract class AbstractDBModelGenerator implements IDBModelGenerator {
 	protected static final String COLUMNCLASS_NAME_SUFFIX = "Columns";
 	protected static final String RELATION_CLASSNAME_SUFFIX = "Relations";
 	protected static final String TABLE_NAME_FIELD = "NAME";
+	protected static final String SCHEMA_NAME_SUFFIX = "Schema";
+
 
 	//Defines all the necessary keywords that will be used. 
 
 	//Java Language keywords
 	protected static final String PUBLIC = "public";
+	protected static final String PRIVATE = "private";
 	protected static final String CLASS = "class";
 	protected static final String IMPORT = "import";
 	protected static final String PACKAGE = "package";
@@ -38,6 +41,13 @@ public abstract class AbstractDBModelGenerator implements IDBModelGenerator {
 	protected static final String CUSTOM_COMMENT_END = "*/";
 	protected static final String NULL = "null";
 	protected static final String RETURN = "return";
+	protected static final String VOID = "void";
+	protected static final String FOR = "for";
+	protected static final String THIS = "this";
+	protected static final String IF = "if";
+
+
+
 
 
 	//
@@ -60,6 +70,29 @@ public abstract class AbstractDBModelGenerator implements IDBModelGenerator {
 	protected static final String METH_EVAL = RelationCondition.EVAL_METHOD_NAME;
 	protected static final String METH_EQ = "eq";
 	protected static final String METH_GET_COL = "col";
+	protected static final String METH_SET_RELATIONS = "setRelations";
+	protected static final String METH_UPDATE_TABLES = "updateTables";
+	protected static final String METH_UPDATE_ALL_MEMBERS = "updateAllRelationMembers";
+	protected static final String METH_GET_MEMBERS = "getRelationMembers";
+	protected static final String METH_GET_RELATIONS = "getRelations";
+	protected static final String METH_GET_FROM_LIST = "get";
+	protected static final String METH_GET_TABLE = "getTable";
+	protected static final String METH_GET_NAME = "getName";
+	protected static final String METH_EQUALS = "equals";
+	protected static final String METH_SET_TABLE = "setTable";
+	protected static final String METH_INIT_TABLES = "initTables";
+	protected static final String METH_INIT_FILTERING = "initFilterings";
+	protected static final String METH_SET_RELATION_MODEL = "setRelationModel";
+	protected static final String METH_LIST_ADD = "add";
+	protected static final String METH_SET_FILTERING = "setFiltering";
+	protected static final String METH_SET_SCH_TABLES = "setTables";
+
+
+	
+	
+
+
+
 
 
 

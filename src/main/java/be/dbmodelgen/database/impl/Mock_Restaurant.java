@@ -1,9 +1,9 @@
 package be.dbmodelgen.database.impl;
 
 import be.dbmodelgen.database.Address;
-import be.dbmodelgen.database.Restaurant;
+import be.dbmodelgen.database.RestaurantDeprecated;
 
-public class Mock_Restaurant implements Restaurant {
+public class Mock_Restaurant implements RestaurantDeprecated {
 
 	private int rest_id;
 	

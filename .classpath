@@ -22,6 +22,5 @@
 	<classpathentry kind="lib" path="C:/Program Files (x86)/DB-Main 9.1.5 (DEASY)/bin/jidbmx.jar"/>
 	<classpathentry kind="lib" path="sqlite-jdbc-3.6.20.jar"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/dynamicschema"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/dynamicschema-android"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
